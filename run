@@ -1,0 +1,4 @@
+#!/bin/bash
+
+PLTNOTOOLS=1 strace -ttt -f -o $1 ~/sw/plt/bin/drracket
+python plot.py -o $1.png $1

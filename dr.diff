@@ -1,0 +1,289 @@
+diff --git a/collects/drracket/drracket.rkt b/collects/drracket/drracket.rkt
+index 67c8430..6ac53d8 100644
+--- a/collects/drracket/drracket.rkt
++++ b/collects/drracket/drracket.rkt
+@@ -1,5 +1,11 @@
+ #lang racket/base
+-(require racket/gui/base "private/key.rkt")
++(require performance-scripts/log-print)
++
++(log-printing "starting require of /gui/base")
++
++;(require racket/gui/base "private/key.rkt")
++
++(log-printing "starting drscheme")
+ 
+ (define debugging? (getenv "PLTDRDEBUG"))
+ (define profiling? (getenv "PLTDRPROFILE"))
+@@ -136,6 +142,7 @@
+    (flprintf "PLTDRPAR: installing compilation manager\n")
+    (current-load/use-compiled (make-compilation-manager-load/use-compiled-handler))])
+ 
++#;
+ (when profiling?
+   (flprintf "PLTDRPROFILE: installing profiler\n")
+   ;; NOTE that this might not always work.
+@@ -148,4 +155,7 @@
+     (current-custodian new-cust)
+     ((dynamic-require 'drracket/private/profile-drs 'start-profile) orig-cust)))
+ 
++(log-printing "loading drracket/private/drracket-normal")
+ (dynamic-require 'drracket/private/drracket-normal #f)
++(log-printing "exiting")
++(exit 0)
+diff --git a/collects/drracket/private/drracket-normal.rkt b/collects/drracket/private/drracket-normal.rkt
+index 3997cef..41615ee 100644
+--- a/collects/drracket/private/drracket-normal.rkt
++++ b/collects/drracket/private/drracket-normal.rkt
+@@ -1,16 +1,25 @@
+ #lang racket/base
+ 
++(require performance-scripts/log-print)
++
++(log-printing/stx "in drracket-normal/stx")
++(log-printing "in drracket-normal")
++
+ (require mred
+          racket/class
++	 unstable/lazy-require
+          racket/cmdline
+          racket/list
+          framework/private/bday
+-         framework/splash
+          racket/runtime-path
+          racket/file
+          "frame-icon.rkt"
+          "eb.rkt")
+ 
++(lazy-require [framework/splash (shutdown-splash set-splash-bitmap refresh-splash set-splash-progress-bar?! set-splash-char-observer start-splash close-splash)])
++
++(log-printing "finished drracket-normal requires")
++
+ (define-runtime-path doc-icon.rkt "dock-icon.rkt")
+ 
+ (define files-to-open (command-line #:args filenames filenames))
+@@ -35,6 +44,8 @@
+     [(currently-the-weekend?) 'weekend]
+     [else 'normal]))
+ 
++(log-printing "starting surprise calculations")
++
+ (define-values (texas-independence-day? prince-kuhio-day? kamehameha-day? halloween?)
+   (let* ([date (seconds->date (current-seconds))]
+          [month (date-month date)]
+@@ -98,6 +109,8 @@
+       (exit))
+     (when (char? ch)
+       ;; as soon as something is typed, load the bitmaps
++      (log-printing "about to load-magic-images")
++
+       (load-magic-images)
+       (add-key-code ch)
+       (let ([match (find-magic-image)])
+@@ -116,6 +129,8 @@
+ (define normal-bitmap-spec (collection-file-path "racket-logo-plastic-256x256.png" "icons"))
+ (define valentines-days-spec (collection-file-path "heart.png" "icons"))
+ 
++(log-printing "loading private logos")
++
+ (define the-bitmap-spec
+   (cond
+     [(valentines-day?)
+@@ -133,6 +148,7 @@
+     [(currently-the-weekend?)
+      weekend-bitmap-spec]
+     [else normal-bitmap-spec]))
++(log-printing "reading the logo bitmap")
+ (define the-splash-bitmap (read-bitmap the-bitmap-spec))
+ (set-splash-char-observer drracket-splash-char-observer)
+ 
+@@ -170,6 +186,7 @@
+           (set-icon next-state))
+         (loop next-state))))))
+ 
++(log-printing "start splash screen")
+ (start-splash the-splash-bitmap
+               "DrRacket"
+               700
+@@ -195,6 +212,11 @@
+                      (parent f))])
+         (send f show #t)))))
+ 
++(log-printing "loading tool-lib")
+ (dynamic-require 'drracket/tool-lib #f)
++(log-printing "shutting down splash")
+ (shutdown-splash)
++(log-printing "splash shut down")
+ (close-splash)
++(log-printing "splash closed")
++(exit 0)
+diff --git a/collects/drracket/private/frame-icon.rkt b/collects/drracket/private/frame-icon.rkt
+index 5fa7b1d..d359932 100644
+--- a/collects/drracket/private/frame-icon.rkt
++++ b/collects/drracket/private/frame-icon.rkt
+@@ -2,7 +2,7 @@
+ (require racket/class racket/draw)
+ (provide todays-icon)
+ 
+-(define todays-icon
++(define (todays-icon)
+   (and (eq? (system-type) 'unix)
+        (let ()
+          ;; avoid building the mask unless we use it
+diff --git a/collects/drracket/private/link.rkt b/collects/drracket/private/link.rkt
+index 9786244..bdf7395 100644
+--- a/collects/drracket/private/link.rkt
++++ b/collects/drracket/private/link.rkt
+@@ -25,8 +25,12 @@
+          "module-language-tools.rkt"
+          "interface.rkt")
+ 
++(require performance-scripts/log-print)
++
+ (provide drracket@)
+ 
++(log-printing "linking units")
++
+ (define-compound-unit/infer drracket-unit@
+   (import)
+   (export drracket:debug^
+@@ -49,6 +53,8 @@
+         help-desk@ tracing@ app@
+         main@))
+ 
++(log-printing "finished linking")
++
+ (define-signature drscheme/drracket:tool^
+   ((open drracket:tool^)
+    (open drscheme:tool^)))
+@@ -86,3 +92,5 @@
+     (prefix drscheme:module-language-tools: drracket:module-language-tools^)
+     (prefix drscheme: drracket:interface^))
+    drracket-unit@))
++
++(log-printing "finished defining drracket-unit")
+diff --git a/collects/drracket/private/main.rkt b/collects/drracket/private/main.rkt
+index cc979bc..aa97171 100644
+--- a/collects/drracket/private/main.rkt
++++ b/collects/drracket/private/main.rkt
+@@ -14,6 +14,8 @@
+          browser/external
+          setup/plt-installer)
+ 
++(require performance-scripts/log-print)
++
+ (import [prefix drracket:app: drracket:app^]
+         [prefix drracket:unit: drracket:unit^]
+         [prefix drracket:get/extend: drracket:get/extend^]
+@@ -29,12 +31,14 @@
+         [prefix drracket:multi-file-search: drracket:multi-file-search^])
+ (export)
+ 
++(log-printing "in main unit")
++
+ (define (drr:set-default name val predicate)
+   (preferences:set-default 
+    name val predicate 
+    #:aliases (list (string->symbol (regexp-replace #rx"^drracket:" (symbol->string name) "drscheme:")))))
+ 
+-(frame:current-icon todays-icon)
++(frame:current-icon (todays-icon))
+   
+ (application-file-handler
+  (let ([default (application-file-handler)])
+@@ -438,6 +442,8 @@
+                            (list trimmed)
+                            void))))
+ 
++(log-printing "started loading tools")
++
+ (drracket:tools:load/invoke-all-tools
+  (λ () (void))
+  (λ () 
+@@ -445,6 +451,8 @@
+    (drracket:module-language:add-module-language)
+    (drracket:language-configuration:add-info-specified-languages)))
+ 
++(log-printing "finished loading tools")
++
+ ;; no more extension after this point
+ (drracket:get/extend:get-interactions-canvas)
+ (drracket:get/extend:get-definitions-canvas)
+@@ -453,6 +461,8 @@
+ (drracket:get/extend:get-definitions-text)
+ (drracket:language-configuration:get-languages)
+ 
++(log-printing "finished get/extend")
++
+ ;; this default can only be set *after* the
+ ;; languages have all be registered by tools
+ (drr:set-default
+@@ -706,17 +716,23 @@
+ (for-each drracket:frame:add-keybindings-item 
+           (preferences:get 'drracket:user-defined-keybindings))
+ 
++(log-printing "keybindings installed")
++
+ ;; the initial window doesn't set the 
+ ;; unit object's state correctly, yet.
+ (define (make-basic)
++  (log-printing "starting make-basic")
+   (let* ([frame (drracket:unit:open-drscheme-window)]
+          [interactions-edit (send frame get-interactions-text)]
+          [definitions-edit (send frame get-interactions-text)]
+          [filename (send definitions-edit get-filename)])
++    (log-printing "finished binding")
+     (unless filename
+       (send frame update-shown)
+       (send (send frame get-interactions-canvas) focus))
+-    (send frame show #t)))
++    (log-printing "about to show in main-basic")
++    (send frame show #t)
++    (log-printing "finished showing in main-basic")))
+ 
+ ;; FIXME: get this from racket/list ?
+ (define (remove-duplicates files)
+@@ -768,3 +784,5 @@
+      (when (and (preferences:get 'drracket:open-in-tabs)
+                 (not (null? no-dups)))
+        (handler:edit-file (car no-dups))))))
++
++(log-printing "done with main unit")
+\ No newline at end of file
+diff --git a/collects/framework/splash.rkt b/collects/framework/splash.rkt
+index 32de612..b66ca94 100644
+--- a/collects/framework/splash.rkt
++++ b/collects/framework/splash.rkt
+@@ -1,5 +1,8 @@
+ #lang racket/base
+ 
++(require performance-scripts/log-print)
++(log-printing "in framework/splash")
++
+ (require racket/class
+          racket/file
+          racket/gui/base
+@@ -142,8 +145,9 @@
+ 
+ (define (start-splash splash-draw-spec _splash-title width-default 
+                       #:allow-funny? [allow-funny? #f]
+-                      #:frame-icon [frame-icon #f])
++                      #:frame-icon [_frame-icon #f])
+   (unless allow-funny? (set! funny? #f))
++  (define frame-icon (and _frame-icon (_frame-icon)))
+   (set! splash-title _splash-title)
+   (set! splash-max-width (max 1 (splash-get-preference (get-splash-width-preference-name) width-default)))
+   (let/ec k
+diff --git a/collects/mred/private/mred.rkt b/collects/mred/private/mred.rkt
+index 050e8bb..c24c53c 100644
+--- a/collects/mred/private/mred.rkt
++++ b/collects/mred/private/mred.rkt
+@@ -46,6 +46,8 @@
+   ;; These functions are re-implemented in scheme/gui/base
+   ;; and racket/gui/base to attach those names, instead of
+   ;; just 'mred.
++(require performance-scripts/log-print)
++(log-printing "starting in private/mred.rkt")
+ 
+   (define-namespace-anchor anchor)
+ 
